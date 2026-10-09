@@ -13,11 +13,12 @@ int main(int argc, const char* argv[]) {
     int constant = addConstant(&chunk, 1.2);
     writeChunk(&chunk, OP_CONSTANT, 123);
     writeChunk(&chunk, constant, 123);
-
+    writeChunk(&chunk, OP_NEGATE, 123);
     writeChunk(&chunk, OP_RETURN, 123);
     disassembleChunk(&chunk, "Free chunk");
 
     interpret(&chunk);
+
     freeVM();
     freeChunk(&chunk);
     return 0;
