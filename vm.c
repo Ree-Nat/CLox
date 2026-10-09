@@ -4,18 +4,21 @@
 #include "debug.h"
 
 VM vm;
+ValueArray stackArray;
 
 static void resetStack() {
-    vm.stackTop = vm.stack;
+  freeValueArray(&stackArray);
+  initValueArray(&stackArray);    
 }
 
 
 void initVM(){
-    resetStack();
+  initValueArray(&stackArray);
+  vm.valueArray = &stackArray;
 }
 
 void freeVM(){
-
+  freeValueArray(&stackArray);
 }
 
 
@@ -25,18 +28,18 @@ static InterpretResult run() {
   #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
   #define BINARY_OP(op) \
             do { \ 
-              double b = pop(); \
-              double a = pop(); \
+              double b = pop(&stackArray); \
+              double a = pop(&stackArray); \
               push(a op b); \
             } while (false)
 
     for (;;) {
   #ifdef DEBUG_TRACE_EXECUTION
       printf("      ");
-      for(Value* slot = vm.stack; slot < vm.stackTop; slot++)
+      for(Value slot = stackArray.values[stackArray.count]; slot < stackArray.count; slot++)
       {
         printf("[ ");
-        printValue(*slot);
+        printValue(slot);
         printf(" ]");
       }
       printf("\n");
@@ -50,13 +53,13 @@ static InterpretResult run() {
           push(constant);
           break;
         }
-      case OP_NEGATE: push(-pop()); break;
+      case OP_NEGATE: push(-pop(&stackArray)); break;
       case OP_ADD:      BINARY_OP(+); break;
       case OP_SUBTRACT: BINARY_OP(-); break;
       case OP_MULTIPLY: BINARY_OP(*); break;
       case OP_DIVIDE:   BINARY_OP(/); break;
         case OP_RETURN: {
-          printValue(pop());
+          printValue(pop(&stackArray));
           printf("\n");
           return INTERPRET_OK;
         }
@@ -73,11 +76,11 @@ InterpretResult interpret(Chunk* chunk) {
 }
 
 void push(Value value) {
-    *vm.stackTop = value;
-    vm.stackTop++;
+  writeValueArray(&stackArray, value);
 }
 
-Value pop() { 
-    vm.stackTop--;;
-    return *vm.stackTop;
+Value pop(ValueArray* valueArray) {
+    Value item = valueArray->values[valueArray->count];
+    valueArray->count -= 1;
+    return item;
 }
