@@ -53,7 +53,7 @@ static InterpretResult run() {
           push(constant);
           break;
         }
-      case OP_NEGATE: push(-pop(&stackArray)); break;
+      case OP_NEGATE: peekAndAssignNegative(&stackArray); break;
       case OP_ADD:      BINARY_OP(+); break;
       case OP_SUBTRACT: BINARY_OP(-); break;
       case OP_MULTIPLY: BINARY_OP(*); break;
@@ -83,4 +83,12 @@ Value pop(ValueArray* valueArray) {
     Value item = valueArray->values[valueArray->count];
     valueArray->count -= 1;
     return item;
+}
+
+
+void peekAndAssignNegative(ValueArray* valueArray) {
+    Value* item = &(valueArray->values[valueArray->count]);
+    *item = -1 * *item;
+    return *item;
+    
 }
