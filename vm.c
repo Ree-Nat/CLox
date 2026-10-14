@@ -67,7 +67,7 @@ static InterpretResult run() {
   #undef READ_CONSTANT
 }
 
-InterpretResult interpret(Chunk* source) {
+InterpretResult interpret(const char* source) {
   Chunk chunk;
   initChunk(&chunk);
 

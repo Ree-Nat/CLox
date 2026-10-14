@@ -176,7 +176,7 @@ static Token string() {
 }
 
 Token scanToken() {
-    skipWhiteSpace();
+    skipWhitespace();
     scanner.start = scanner.current;
 
 
