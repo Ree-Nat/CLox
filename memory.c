@@ -14,6 +14,8 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize){
     return result;
 }
 
+
+/*
 static void freeObject(Obj* object) {
   switch (object->type) {
     case OBJ_STRING: {
@@ -24,12 +26,27 @@ static void freeObject(Obj* object) {
     }
   }
 }
+*/
 
+
+
+void freeObject(Obj* single_object)
+{
+    switch(single_object->type) {
+        case OBJ_STRING: {
+            ObjString* string = (ObjString*)single_object;
+            reallocate(single_object, sizeof(ObjString) + string->length +1, 0);
+            break;
+        }
+    }
+}
+
+// since we allocated once, we cant use free, free the object passed in
 void freeObjects() {
   Obj* object = vm.objects;
   while (object != NULL) {
     Obj* next = object->next;
     freeObject(object);
-    object = next;
+    object = next; 
+    }
   }
-}
