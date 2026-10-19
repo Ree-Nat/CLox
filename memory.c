@@ -35,7 +35,11 @@ void freeObject(Obj* single_object)
     switch(single_object->type) {
         case OBJ_STRING: {
             ObjString* string = (ObjString*)single_object;
-            reallocate(single_object, sizeof(ObjString) + string->length +1, 0);
+            size_t size = sizeof(ObjString);
+            if(string->chars == string->buf) {
+                size += string->length;
+            }
+            reallocate(single_object, size, 0);
             break;
         }
     }

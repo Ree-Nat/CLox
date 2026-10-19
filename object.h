@@ -25,12 +25,14 @@ struct Obj {
 struct ObjString {
   Obj obj;
   int length;
+  const char* buf; //var to see if the string is owned or not//
   char chars[];
 };
 
 ObjString* createString(int length);
 ObjString* takeString(char* chars, int length);
 ObjString* copyString(const char* chars, int length);
+ObjString* borrowString(const char* chars, int length);// case if no ownership
 void printObject(Value value);
 
 static inline bool isObjType(Value value, ObjType type) {

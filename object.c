@@ -28,15 +28,12 @@ ObjString* createString(int length) {
 }
 
 
-//no need
-/*
-static ObjString* allocateString(char* chars, int length) {
+static ObjString* allocateString(int length, bool isInLine) {
+  size_t size = sizeof(ObjString) + (isInLine ? length + 1 : 0);
   ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
   string->length = length;
-  string->chars = chars;
   return string;
 }
-*/
 
 //instead take from parameter
 ObjString* takeString(char* chars, int length) {
@@ -49,9 +46,15 @@ ObjString* takeString(char* chars, int length) {
 ObjString* copyString(const char* chars, int length) {
     ObjString* string = createString(length);
     memcpy(string->chars, chars, length);
-    string->chars[length] = '\0';
+    //string->chars[length] = '\0';
     return string;
 
+}
+
+ObjString* borrowString(const char* chars, int length){
+  ObjString* string = allocateString(length, false);
+  string->buf = chars;
+  return string;
 }
 
 void printObject(Value value) {
