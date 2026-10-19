@@ -12,7 +12,7 @@ typedef struct {
     uint8_t* ip;
     Value stack[STACK_MAX];
     Value* stackTop;
-    Obj* objects
+    Obj* objects;
 } VM;
 
 typedef enum {

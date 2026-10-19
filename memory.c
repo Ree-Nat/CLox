@@ -1,5 +1,5 @@
 #include <stdlib.h>
-
+#include "vm.h"
 #include "memory.h"
 
 

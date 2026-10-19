@@ -10,6 +10,10 @@
 
 VM vm;
 
+static Value peek(int distance);
+static bool isFalsey(Value value);
+static void concatenate();
+
 static void resetStack() {
     vm.stackTop = vm.stack;
     vm.objects = NULL;
