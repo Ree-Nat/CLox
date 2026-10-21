@@ -21,19 +21,20 @@ void freeTable(Table* table) {
 
 static Entry* findEntry(Entry* entries, int capacity,
                         ObjString* key) {
-  uint32_t index = key->hash % capacity;
+  uint32_t index = hashValue(key) % capacity;
+   //instead of hashing with the string hash call function to deterine what type of key, then return index
   Entry* tombstone = NULL;
   for (;;) {
     Entry* entry = &entries[index];
      if (entry->key == NULL) {
-      if (IS_NIL(entry->value)) {
+      if (IS_EMPTY(entry->value)) { //replace tombstone
         // Empty entry.
         return tombstone != NULL ? tombstone : entry;
       } else {
         // We found a tombstone.
         if (tombstone == NULL) tombstone = entry;
       }
-    } else if (entry->key == key) {
+    } else if (valuesEqual(valuesEqual(key, entry->key))) {
       // We found the key.
       return entry;
     }
@@ -55,7 +56,7 @@ bool tableGet(Table* table, ObjString* key, Value* value) {
 static void adjustCapacity(Table* table, int capacity) {
   Entry* entries = ALLOCATE(Entry, capacity);
   for (int i = 0; i < capacity; i++) {
-    entries[i].key = NULL;
+    entries[i].key = EMPTY_VAL; //again get rid of tombstone value
     entries[i].value = NIL_VAL;
   }
 
@@ -108,7 +109,7 @@ bool tableDelete(Table* table, ObjString* key) {
 void tableAddAll(Table* from, Table* to) {
   for (int i = 0; i < from->capacity; i++) {
     Entry* entry = &from->entries[i];
-    if (entry->key != NULL) {
+    if (!IS_EMPTY(entry->key)) {
       tableSet(to, entry->key, entry->value);
     }
   }
@@ -133,4 +134,27 @@ ObjString* tableFindString(Table* table, const char* chars,
 
     index = (index + 1) % table->capacity;
   }
+}
+
+//write hash functions for non-string values
+static uint32_t hashDouble(double value) {
+    union BitCast {
+        double value;
+        uint32_t ints[2];
+    };
+
+    union BitCast cast;
+    cast.value = (value) + 1.0;
+    return cast.ints[0] + cast.ints[1];
+}
+
+//Assign each value a random hard coded hash value
+uint32_t hashValue(Value value) {
+    switch (value.type) {
+        case VAL_BOOL: return AS_BOOL(value) ? 3: 5; 
+        case VAL_NIL: return 7;
+        case VAL_NUMBER: return hasDouble(AS_NUMBER(value));
+        case VAL_OBJ: return AS_STRING(value)->hash;
+        case VAL_EMPTY: return 0;
+    }
 }
