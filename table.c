@@ -8,11 +8,24 @@
 
 #define TABLE_MAX_LOAD 0.75
 
+
+
 void initTable(Table* table) {
   table->count = 0;
   table->capacity = 0;
   table->entries = NULL;
 }
+
+
+/*
+void initAccounting(AccountingInfo* accountInfo){
+  accountInfo->deletion = 0;
+  accountInfo->miss = 0;
+  accountInfo->swap = 0;
+  accountInfo->timeTaken = 0; //would calcualte deletion, miss swap for each helper function below
+
+}
+*/
 
 void freeTable(Table* table) {
   FREE_ARRAY(Entry, table->entries, table->capacity);

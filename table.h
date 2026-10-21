@@ -15,6 +15,14 @@ typedef struct {
   Entry* entries;
 } Table;
 
+typedef struct {
+  int miss; // add plus 1 if entry is not entry or null 
+  float timeTaken; 
+  int swap; 
+  int deletion; 
+}AccountingInfo;  
+
+
 void initTable(Table* table);
 void freeTable(Table* table);
 bool tableGet(Table* table, ObjString* key, Value* value);
