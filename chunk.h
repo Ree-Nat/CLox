@@ -10,6 +10,7 @@ typedef enum {
     OP_NEGATE,
     OP_PRINT,
     OP_RETURN,
+    OP_SET_GLOBAL,
     OP_NIL,
     OP_TRUE,
     OP_FALSE,
