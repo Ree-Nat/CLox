@@ -7,6 +7,7 @@
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
+#include "table.h"
 #endif
 
 
@@ -43,6 +44,7 @@ typedef struct {
 
 Parser parser;
 Chunk* compilingChunk;
+static Table stringConstants; // where to store our single string constant in our compiler
 static void expression();
 static void statement();
 static void declaration();
@@ -133,8 +135,22 @@ static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 
 static uint8_t identifierConstant(Token* name) {
+    /*
   return makeConstant(OBJ_VAL(copyString(name->start,
                                          name->length)));
+    */
+   //Instead of making constant and copying wasting time, 
+   //check if string constant exist in table or not
+
+   ObjString* string = copyString(name->start, name->length);
+
+   Value indexValue;
+   if (tableGet(&stringConstants, string, &indexValue)) {
+    return (uint8_t)AS_NUMBER(indexValue);
+   }
+   //if already in make constant
+   uint8_t index = makeConstant(OBJ_VAL(string));
+   tableSet(&stringConstants, string, NUMBER_VAL((double)index));
 }
 
 static uint8_t parseVariable(const char* errorMessage) {
@@ -381,10 +397,6 @@ static void emitReturn(){
     emitByte(OP_RETURN);
 }
 
-
-
-
-
 static void endCompiler() {
     emitReturn();
 
@@ -398,6 +410,7 @@ static void endCompiler() {
 bool compile(const char* source, Chunk* chunk){
     initScanner(source);
     compilingChunk = chunk;
+    initTable(&stringConstants);
 
     parser.hadError = false;
     parser.panicMode = false;
@@ -410,6 +423,7 @@ bool compile(const char* source, Chunk* chunk){
     //expression();
     consume(TOKEN_EOF, "Expected end of expression");
     endCompiler();
+    freeTable(&stringConstants);
     return !parser.hadError;
 }
 
