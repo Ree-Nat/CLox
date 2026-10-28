@@ -13,6 +13,7 @@ typedef enum {
     OP_SET_GLOBAL,
     OP_NIL,
     OP_TRUE,
+    OP_JUMP,
     OP_FALSE,
     OP_POP,
     OP_GET_GLOBAL,
@@ -22,12 +23,13 @@ typedef enum {
     OP_LESS,
     OP_GET_LOCAL,
     OP_SET_LOCAL,
-
+    OP_JUMP_IF_FALSE,
     OP_ADD,
     OP_SUBTRACT,
     OP_NOT,
     OP_MULTIPLY,
     OP_DIVIDE,
+    OP_LOOP,
 } OpCode;
 
 typedef struct{
