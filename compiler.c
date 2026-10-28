@@ -10,6 +10,7 @@
 #include "debug.h"
 #endif
 
+#define LOCALS_INT16 UINT16_MAX
 
 typedef struct{
     Token current;
@@ -47,7 +48,7 @@ typedef struct {
 } Local;
 
 typedef struct {
-  Local locals[UINT8_COUNT];
+  Local locals[LOCALS_INT16];
   int localCount;
   int scopeDepth;
 } Compiler;
@@ -175,7 +176,7 @@ static int resolveLocal(Compiler* compiler, Token* name) {
 }
 
 static void addLocal(Token name) {
-    if (current->localCount == UINT8_COUNT) {
+    if (current->localCount == LOCALS_INT16) {
     error("Too many local variables in function.");
     return;
   }
@@ -289,7 +290,7 @@ static void grouping(bool canAssign) {
 
 static uint8_t makeConstant(Value value){
     int constant = addConstant(currentChunk(), value);
-    if (constant > UINT8_MAX){
+    if (constant > LOCALS_INT16){
         error("Too man constants in one chunk.");
         return 0;
     }
@@ -318,25 +319,47 @@ static void string(bool canAssign) {
 }
 
 static void namedVariable(Token name, bool canAssign) {
-    uint8_t getOp, setOp;
-    int arg = resolveLocal(current, &name);
-    if (arg != -1) {
+  uint8_t getOp, setOp;
+  bool isLong = false;
+  int arg = resolveLocal(current, &name);
+
+  if (arg != -1) {
+    if (arg > UINT8_MAX) {
+      getOp = OP_GET_LOCAL_LONG;
+      setOp = OP_SET_LOCAL_LONG;
+      isLong = true;
+    } else {
       getOp = OP_GET_LOCAL;
       setOp = OP_SET_LOCAL;
-    } else {
-      arg = identifierConstant(&name);
-      getOp = OP_GET_GLOBAL;
-      setOp = OP_SET_GLOBAL;
     }
-
-
-    if (canAssign && match(TOKEN_EQUAL)){
-    expression();
-    emitBytes(setOp, (uint8_t)arg);
   } else {
-    emitBytes(getOp, (uint8_t)arg);
+    arg = identifierConstant(&name);
+    getOp = OP_GET_GLOBAL;
+    setOp = OP_SET_GLOBAL;
   }
+
+  //Emit the local byte or local long depending if local scope is 
+  //greater than 256 or not 
+   if (canAssign && match(TOKEN_EQUAL)) {
+      expression();
+      if (arg <= 255) {
+        emitBytes(OP_SET_LOCAL, (uint8_t)arg);
+      } else {
+        emitByte(OP_SET_LOCAL_LONG);
+        emitByte((uint8_t)(arg >> 8) & 0xff); // 上位バイト
+        emitByte((uint8_t)(arg & 0xff));      // 下位バイト
+      }
+    } else {
+      if (arg <= 255) {
+        emitBytes(OP_GET_LOCAL, (uint8_t)arg);
+      } else {
+        emitByte(OP_GET_LOCAL_LONG);
+        emitByte((uint8_t)(arg >> 8) & 0xff);
+        emitByte((uint8_t)(arg & 0xff));
+      }
+    }
 }
+
 
 
 static void variable(bool canAssign) {

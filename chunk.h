@@ -22,6 +22,8 @@ typedef enum {
     OP_LESS,
     OP_GET_LOCAL,
     OP_SET_LOCAL,
+    OP_GET_LOCAL_LONG,
+    OP_SET_LOCAL_LONG,
 
     OP_ADD,
     OP_SUBTRACT,

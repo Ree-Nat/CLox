@@ -3,6 +3,7 @@
 #include "debug.h"
 #include "value.h"
 
+static int longLocalInstruction(const char* name, Chunk* chunk, int offset);
 static int simpleInstruction(const char* name, int offset);
 static int constantInstruction(const char* name, Chunk* chunk, int offset);
 static int byteInstruction(const char* name, Chunk* chunk, int offset);
@@ -71,6 +72,10 @@ int disassembleInstruction(Chunk* chunk, int offset)
       return byteInstruction("OP_GET_LOCAL", chunk, offset);
     case OP_SET_LOCAL:
       return byteInstruction("OP_SET_LOCAL", chunk, offset);
+    case OP_GET_LOCAL_LONG:
+      return longLocalInstruction("OP_GET_LOCAL_LONG", chunk, offset);
+    case OP_SET_LOCAL_LONG:
+      return longLocalInstruction("OP_SET_LOCAL_LONG", chunk, offset);
     default: 
       printf("Unknown opcode %d\n", instruction);
       return offset + 1;
@@ -87,6 +92,14 @@ static int byteInstruction(const char* name, Chunk* chunk,
   uint8_t slot = chunk->code[offset + 1];
   printf("%-16s %4d\n", name, slot);
   return offset + 2; 
+}
+
+//challenge level 22 allow access to more than instruction bigger than byte
+static int longLocalInstruction(const char* name, Chunk* chunk, int offset) {
+  uint16_t slot = (uint16_t)((chunk->code[offset + 1] << 8) |
+                              chunk->code[offset + 2]);
+  printf("%-16s %4d\n", name, slot);
+  return offset + 3;
 }
 
 static int constantInstruction(const char* name, Chunk* chunk,

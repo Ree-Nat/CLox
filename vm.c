@@ -51,6 +51,8 @@ void freeVM(){
 
 static InterpretResult run() {
   #define READ_BYTE() (*vm.ip++)
+  #define READ_LONG()\
+    (vm.ip +=2, (uint16_t)((vm.ip[-2] << 8) | vm.ip[-1]))
   #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
   #define READ_STRING() AS_STRING(READ_CONSTANT())
   #define BINARY_OP(valueType, op) \
@@ -163,6 +165,16 @@ static InterpretResult run() {
             //printf("\n");
             return INTERPRET_OK;
           }
+        case OP_GET_LOCAL_LONG: {
+          uint16_t slot = READ_LONG();
+          push(vm.stack[slot]);
+          break;
+      }
+      case OP_SET_LOCAL_LONG: {
+          uint16_t slot = READ_LONG();
+          vm.stack[slot] = peek(0);
+          break;
+      }
       }
     }
   #undef READ_BYTE
