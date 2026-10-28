@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "table.h"
+#include "object.h"
 #include "common.h"
 #include "compiler.h"
 #include "scanner.h"
@@ -45,6 +47,7 @@ typedef struct {
 typedef struct {
   Token name;
   int depth;
+  bool isFinal;
 } Local;
 
 typedef struct {
@@ -57,15 +60,17 @@ typedef struct {
 Parser parser;
 Chunk* compilingChunk;
 Compiler* current = NULL;
+static Table finalGlobals;
+static bool finalGlobalsInit = false;
 
-static void declareVariable();
+static void declareVariable(bool isFinal);
 static void block();
 static void endScope();
 static void beginScope();
 static void expression();
 static void statement();
 static void declaration();
-static void varDeclaration();
+static void varDeclaration(bool isFinal);
 static void expressionStatement();
 static void printStatement();
 static void synchronize();
@@ -175,7 +180,7 @@ static int resolveLocal(Compiler* compiler, Token* name) {
   return -1;
 }
 
-static void addLocal(Token name) {
+static void addLocal(Token name, bool isFinal) {
     if (current->localCount == LOCALS_INT16) {
     error("Too many local variables in function.");
     return;
@@ -185,13 +190,21 @@ static void addLocal(Token name) {
   Local* local = &current->locals[current->localCount++];
   local->name = name;
   local->depth = -1;
+  local->isFinal = isFinal;
 }
 
-static uint8_t parseVariable(const char* errorMessage) {
-  consume(TOKEN_IDENTIFIER, errorMessage);
-
-  declareVariable();
+static uint8_t parseVariable(const char* errorMessage, bool isFinal) {
+  consume(TOKEN_IDENTIFIER, errorMessage); 
+  declareVariable(isFinal);
   if (current->scopeDepth > 0) return 0;
+
+  uint8_t constant = identifierConstant(&parser.previous);
+  //while parsing variable, if our global variable is in final table, return error
+  ObjString* name = AS_STRING(currentChunk()->constants.values[constant]);
+  Value dummy;
+  if (tableGet(&finalGlobals, name, &dummy)) {
+    error("Can't redefine final variable.");
+  }
 
   return identifierConstant(&parser.previous);
 }
@@ -201,7 +214,7 @@ static void markInitialized() {
       current->scopeDepth;
 }
 
-static void declareVariable() {
+static void declareVariable(bool isFinal) {
   if (current->scopeDepth == 0) return;
 
   Token* name = &parser.previous;
@@ -217,15 +230,21 @@ static void declareVariable() {
   }
   }
 
-  addLocal(*name);
+  addLocal(*name, isFinal);
 }
 
-static void defineVariable(uint8_t global) {
+static void defineVariable(uint8_t global, bool isFinal) {
+    
     if (current->scopeDepth > 0) {
-    markInitialized();
-    return;
-  }
-
+      markInitialized();
+      current->locals[current->localCount -1].isFinal = isFinal;
+      return;
+    }
+    if (isFinal)
+    {
+      ObjString* name = AS_STRING(currentChunk()->constants.values[global]);
+      tableSet(&finalGlobals, name, BOOL_VAL(true));
+    }
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
@@ -252,8 +271,13 @@ static void binary(bool canAssign){
 
 static void declaration() {
     if (match(TOKEN_VAR)) {
-        varDeclaration();
-    } else {
+        varDeclaration(false);
+    }
+    else if(match(TOKEN_FINAL))
+    {
+      varDeclaration(true);
+    }
+    else {
         statement();
     }
 
@@ -322,8 +346,10 @@ static void namedVariable(Token name, bool canAssign) {
   uint8_t getOp, setOp;
   bool isLong = false;
   int arg = resolveLocal(current, &name);
+  bool isFinal = false;
 
   if (arg != -1) {
+    isFinal = current->locals[arg].isFinal; //get local final value
     if (arg > UINT8_MAX) {
       getOp = OP_GET_LOCAL_LONG;
       setOp = OP_SET_LOCAL_LONG;
@@ -336,26 +362,36 @@ static void namedVariable(Token name, bool canAssign) {
     arg = identifierConstant(&name);
     getOp = OP_GET_GLOBAL;
     setOp = OP_SET_GLOBAL;
+      //global variable final
+   Value dummy;
+   isFinal = tableGet(&finalGlobals,
+                      AS_STRING(currentChunk()->constants.values[arg]),
+                      &dummy);
+
   }
+
 
   //Emit the local byte or local long depending if local scope is 
   //greater than 256 or not 
    if (canAssign && match(TOKEN_EQUAL)) {
+      if (isFinal) error("can't assign to final variable");
       expression();
-      if (arg <= 255) {
-        emitBytes(OP_SET_LOCAL, (uint8_t)arg);
-      } else {
-        emitByte(OP_SET_LOCAL_LONG);
-        emitByte((uint8_t)(arg >> 8) & 0xff); // 上位バイト
-        emitByte((uint8_t)(arg & 0xff));      // 下位バイト
-      }
-    } else {
-      if (arg <= 255) {
-        emitBytes(OP_GET_LOCAL, (uint8_t)arg);
-      } else {
-        emitByte(OP_GET_LOCAL_LONG);
+      if (isLong) {
+        emitByte(setOp);
         emitByte((uint8_t)(arg >> 8) & 0xff);
         emitByte((uint8_t)(arg & 0xff));
+      } else {
+        emitBytes(setOp, (uint8_t)arg);
+      }
+    }
+    else
+    {
+        if (isLong) {
+        emitByte(getOp);
+        emitByte((uint8_t)(arg >> 8) & 0xff);
+        emitByte((uint8_t)(arg & 0xff));
+      } else {
+        emitBytes(getOp, (uint8_t)arg);
       }
     }
 }
@@ -418,6 +454,7 @@ ParseRule rules[] = {
   [TOKEN_THIS]          = {NULL,     NULL,   PREC_NONE},
   [TOKEN_TRUE]          = {literal,     NULL,   PREC_NONE},
   [TOKEN_VAR]           = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_FINAL]           = {NULL,     NULL,   PREC_NONE},
   [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
@@ -459,18 +496,22 @@ static void block() {
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
 }
 
-static void varDeclaration() {
-  uint8_t global = parseVariable("Expect variable name.");
+static void varDeclaration(bool isFinal) {
+  uint8_t global = parseVariable("Expect variable name.", isFinal);
 
   if (match(TOKEN_EQUAL)) {
     expression();
-  } else {
+  }
+  else if (isFinal){
+    error("Final Variable must be initialized");
+  }
+  else {
     emitByte(OP_NIL);
   }
   consume(TOKEN_SEMICOLON,
           "Expect ';' after variable declaration.");
 
-  defineVariable(global);
+  defineVariable(global, isFinal); //is local 
 }
 
 
@@ -496,6 +537,7 @@ static void synchronize() {
       case TOKEN_CLASS:
       case TOKEN_FUN:
       case TOKEN_VAR:
+      case TOKEN_FINAL:
       case TOKEN_FOR:
       case TOKEN_IF:
       case TOKEN_WHILE:
@@ -545,6 +587,11 @@ static void endScope() {
 }
 
 bool compile(const char* source, Chunk* chunk){
+    if (!finalGlobalsInit) {
+      initTable(&finalGlobals);
+      finalGlobalsInit = true;
+    }
+
     initScanner(source);
     Compiler compiler;
     initCompiler(&compiler);
@@ -561,6 +608,7 @@ bool compile(const char* source, Chunk* chunk){
     //expression();
     consume(TOKEN_EOF, "Expected end of expression");
     endCompiler();
+    //freeTable(&finalGlobals);
     return !parser.hadError;
 }
 
