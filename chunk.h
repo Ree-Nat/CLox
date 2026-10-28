@@ -20,6 +20,8 @@ typedef enum {
     OP_EQUAL,
     OP_GREATER,
     OP_LESS,
+    OP_GET_LOCAL,
+    OP_SET_LOCAL,
 
     OP_ADD,
     OP_SUBTRACT,
