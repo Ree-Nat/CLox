@@ -56,7 +56,11 @@ typedef struct {
 Parser parser;
 Chunk* compilingChunk;
 Compiler* current = NULL;
+//keep track of the depth of the loop function
+int innerloopStart = -1;
+int innerMostLoopScopeDepth = 0;
 
+static void continueStatement();
 static void forStatement();
 static void ifStatement();
 static void whileStatement();
@@ -282,6 +286,27 @@ static void binary(bool canAssign){
 }
 
 
+static void continueStatement(){
+  if (innerloopStart == -1)
+  {
+    error("Can't use continue outside loop");
+  }
+
+  consume(TOKEN_SEMICOLON, "Expect ':' after continue.");
+
+  consume (TOKEN_SEMICOLON, "Expect ':' after 'continue'");
+  if(innerloopStart == -1) return;
+
+  //discard locals
+  for(int i = current->localCount - 1;
+    i >= 0 && current->locals[i].depth > innerMostLoopScopeDepth;
+    i--)
+    {
+        emitByte(OP_POP);
+  }
+  emitLoop(innerloopStart);
+}
+
 static void switchStmt()
 {
   consume(TOKEN_LEFT_PAREN, "Expect '(' after switch statement");
@@ -383,6 +408,10 @@ static void statement() {
     beginScope();
     block();
     endScope();
+    }
+    else if (match(TOKEN_CONTINUE))
+    {
+      continueStatement();
     }
     else {
         expressionStatement();
@@ -542,6 +571,7 @@ ParseRule rules[] = {
   [TOKEN_CASE]          = {NULL,     NULL,   PREC_NONE},
   [TOKEN_DEFAULT]          = {NULL,     NULL,   PREC_NONE},
   [TOKEN_COLON]          = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_CONTINUE]          = {NULL,     NULL,   PREC_NONE},
 
 };
 
@@ -604,6 +634,8 @@ static void expressionStatement() {
 }
 
 static void forStatement() {
+  int surroundingLoop = innerloopStart;
+  int surroundingLoopDepth = innerMostLoopScopeDepth;
   beginScope();
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
   if (match(TOKEN_SEMICOLON)) {
@@ -615,6 +647,10 @@ static void forStatement() {
   }
 
   int loopStart = currentChunk()->count;
+
+  innerloopStart = loopStart;
+  innerMostLoopScopeDepth = current->scopeDepth;
+
   int exitJump = -1;
   if (!match(TOKEN_SEMICOLON)) {
     expression();
@@ -645,6 +681,9 @@ static void forStatement() {
     emitByte(OP_POP); // Condition.
   }
 
+
+  innerloopStart = surroundingLoop;
+  innerMostLoopScopeDepth = surroundingLoopDepth;
   endScope();
 }
 
@@ -672,7 +711,11 @@ static void printStatement() {
 }
 
 static void whileStatement() {
-  int loopStart = currentChunk()->count;
+  int surroundingLoopStart = innerloopStart;
+  int surroundingLoopScopeDepth = innerMostLoopScopeDepth;
+  innerloopStart = currentChunk()->count;
+  innerMostLoopScopeDepth = current->scopeDepth;
+
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
   expression();
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
@@ -680,10 +723,13 @@ static void whileStatement() {
   int exitJump = emitJump(OP_JUMP_IF_FALSE);
   emitByte(OP_POP);
   statement();
-  emitLoop(loopStart);
+  emitLoop(innerMostLoopScopeDepth);
 
   patchJump(exitJump);
   emitByte(OP_POP);
+
+  innerloopStart = surroundingLoopStart;
+  innerMostLoopScopeDepth = surroundingLoopScopeDepth;
 }
 
 
@@ -752,6 +798,8 @@ bool compile(const char* source, Chunk* chunk){
     compilingChunk = chunk;
 
     parser.hadError = false;
+    innerloopStart = -1;
+    innerMostLoopScopeDepth = 0;
     parser.panicMode = false;
     advance();
 
