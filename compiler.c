@@ -281,9 +281,74 @@ static void binary(bool canAssign){
     }
 }
 
+
 static void switchStmt()
 {
-  consume(TOKEN)
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after switch statement");
+  beginScope();
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after switch statement");
+  consume(TOKEN_LEFT_BRACE, "Expect '{' for switch statement");
+
+  // create a stack of locals for switch stmnt
+  Token hidden = { TOKEN_IDENTIFIER, "", 0, parser.previous.line};
+  addLocal(hidden);
+  markInitialized();
+  int slot = current->localCount-1;
+
+  int state = 0;
+  int caseEnds[256];
+  int caseCount = 0;
+  int previousCaseSkip = -1;
+
+  while (!match(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+    if (match(TOKEN_CASE) || match(TOKEN_DEFAULT)) {
+      TokenType caseType = parser.previous.type;
+      if (state == 2) {
+        error("Can't have another case or default after the default case.");
+      }
+      if (state == 1) {
+        if (caseCount == 256) error("Too many cases in switch statement.");
+        else caseEnds[caseCount++] = emitJump(OP_JUMP);
+
+        patchJump(previousCaseSkip);
+        emitByte(OP_POP);             
+      }
+      if (caseType == TOKEN_CASE) {
+        state = 1;
+        emitBytes(OP_GET_LOCAL, (uint8_t)slot);
+        expression();
+        consume(TOKEN_COLON, "Expect ':' after case value.");
+        emitByte(OP_EQUAL);
+        previousCaseSkip = emitJump(OP_JUMP_IF_FALSE);
+        emitByte(OP_POP);             // pop the true comparison result
+      } 
+      else {
+        state = 2;
+        consume(TOKEN_COLON, "Expect ':' after 'default'.");
+        previousCaseSkip = -1;
+      }
+    } else {
+      if(state == 0){
+        error("Can't have statements before any case");
+      }
+      statement();
+    } 
+  }
+  if (state == 1) {
+    patchJump(previousCaseSkip);
+    emitByte(OP_POP);
+  }
+
+  for (int i = 0; i < caseCount; i++) {
+    patchJump(caseEnds[i]);
+  }
+  endScope();  
+}
+
+static void switchCase()
+{
+
 }
 
 static void declaration() {
@@ -309,6 +374,10 @@ static void statement() {
     } 
     else if (match(TOKEN_WHILE)){
       whileStatement();
+    }
+    else if (match(TOKEN_SWITCH))
+    {
+      switchStmt();
     }
     else if (match(TOKEN_LEFT_BRACE)) {
     beginScope();
@@ -470,6 +539,10 @@ ParseRule rules[] = {
   [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
   [TOKEN_SWITCH]        = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_CASE]          = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_DEFAULT]          = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_COLON]          = {NULL,     NULL,   PREC_NONE},
+
 };
 
 static void parsePrecedence(Precedence precedence) {
