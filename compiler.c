@@ -44,6 +44,9 @@ typedef struct {
 Parser parser;
 Chunk* compilingChunk;
 static void expression();
+static void switchStmt();
+static void switchCase();
+static void defaultCase();
 static void statement();
 static void declaration();
 static void varDeclaration();
@@ -165,6 +168,11 @@ static void binary(bool canAssign){
         case TOKEN_SLASH:         emitByte(OP_DIVIDE); break;
         default: return; // Unreachable.
     }
+}
+
+static void switchStmt()
+{
+  consume(TOKEN)
 }
 
 static void declaration() {
@@ -295,6 +303,7 @@ ParseRule rules[] = {
   [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_SWITCH]        = {NULL,     NULL,   PREC_NONE},
 };
 
 static void parsePrecedence(Precedence precedence) {
