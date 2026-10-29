@@ -62,6 +62,7 @@ int innerMostLoopScopeDepth = 0;
 
 static void continueStatement();
 static void forStatement();
+static void unlessStatement();
 static void ifStatement();
 static void whileStatement();
 static void patchJump(int offset);
@@ -394,6 +395,10 @@ static void statement() {
     {
       forStatement();
     }
+    else if(match(TOKEN_UNLESS))
+    {
+      unlessStatement();
+    }
     else if (match(TOKEN_IF)) {
       ifStatement();
     } 
@@ -572,6 +577,7 @@ ParseRule rules[] = {
   [TOKEN_DEFAULT]          = {NULL,     NULL,   PREC_NONE},
   [TOKEN_COLON]          = {NULL,     NULL,   PREC_NONE},
   [TOKEN_CONTINUE]          = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_UNLESS]          = {NULL,     NULL,   PREC_NONE},
 
 };
 
@@ -691,6 +697,25 @@ static void ifStatement() {
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
   expression();
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition."); 
+
+  int thenJump = emitJump(OP_JUMP_IF_FALSE);
+  emitByte(OP_POP);
+  statement();
+  
+  int elseJump = emitJump(OP_JUMP);
+
+  patchJump(thenJump);
+  emitByte(OP_POP);
+  if (match(TOKEN_ELSE)) statement();
+  patchJump(elseJump);
+}
+
+static void unlessStatement() {
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition."); 
+
+  emitByte(OP_NOT);
 
   int thenJump = emitJump(OP_JUMP_IF_FALSE);
   emitByte(OP_POP);
