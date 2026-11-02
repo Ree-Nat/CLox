@@ -18,11 +18,12 @@ static void concatenate();
 static bool call(ObjFunction* function, int argCount);
 static bool callValue(Value callee, int argCount);
 
-static Value clockNative(int argCount, Value* args) {
-  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+static bool clockNative(int argCount, Value* args) {
+  args[-1]  = NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+  return true;
 }
 
-static Value strConcatNative(int argCount, Value* args)
+static bool strConcatNative(int argCount, Value* args)
 {
   ObjString* a = AS_STRING(args[0]);
   ObjString* b = AS_STRING(args[1]);
@@ -33,14 +34,16 @@ static Value strConcatNative(int argCount, Value* args)
   memcpy(chars + a->length, b->chars, b->length);
   chars[length] = '\0';
 
-  return OBJ_VAL(takeString(chars, length));
+  args[-1] =  OBJ_VAL(takeString(chars, length));
+  return true;
 }
 
-static Value strLengthNative(int argCount, Value* args)
+static bool strLengthNative(int argCount, Value* args)
 {
   ObjString* a = AS_STRING(args[0]);
   int length = a->length;
-  return NUMBER_VAL((int) length);
+  args[-1] =  NUMBER_VAL((int) length);
+  return true;
 }
 
 static Value squareNative(int argCount, Value* arg)
@@ -340,14 +343,18 @@ static bool callValue(Value callee, int argCount) {
         return call(AS_FUNCTION(callee), argCount);
       case OBJ_NATIVE: {
         NativeFn native = AS_NATIVE(callee);
-        Value result = native(argCount, vm.stackTop - argCount);
-        vm.stackTop -= argCount + 1;
-        push(result);
-        return true;
-      }
+        if(native(argCount, vm.stackTop - argCount))
+        {
+          vm.stackTop -= argCount;
+          return true;
+        } else {
+          runtimeError(AS_STRING(vm.stackTop[-argCount -1])->chars);
+          return false;
+        }
       default:
         break; // Non-callable object type.
     }
+  }
   }
   runtimeError("Can only call functions and classes.");
   return false;
