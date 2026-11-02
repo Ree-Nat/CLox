@@ -8,6 +8,7 @@
 #include "object.h"
 #include "memory.h"
 #include <time.h>
+#include <string.h>
 
 VM vm;
 
@@ -19,6 +20,32 @@ static bool callValue(Value callee, int argCount);
 
 static Value clockNative(int argCount, Value* args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+}
+
+static Value strConcatNative(int argCount, Value* args)
+{
+  ObjString* a = AS_STRING(args[0]);
+  ObjString* b = AS_STRING(args[1]);
+
+  int length = a->length + b->length;
+  char* chars = ALLOCATE(char, length + 1);
+  memcpy(chars, a->chars, a->length);
+  memcpy(chars + a->length, b->chars, b->length);
+  chars[length] = '\0';
+
+  return OBJ_VAL(takeString(chars, length));
+}
+
+static Value strLengthNative(int argCount, Value* args)
+{
+  ObjString* a = AS_STRING(args[0]);
+  int length = a->length;
+  return NUMBER_VAL((int) length);
+}
+
+static Value squareNative(int argCount, Value* arg)
+{
+  return NUMBER_VAL((int)(AS_NUMBER(arg[0]) * AS_NUMBER(arg[0])));
 }
 
 static Value peek(int distance);
@@ -69,6 +96,9 @@ void initVM(){
     initTable(&vm.globals);
     initTable(&vm.strings);
     defineNative("clock", clockNative);
+    defineNative("concat", strConcatNative);
+    defineNative("strlen", strLengthNative);
+    defineNative("square", squareNative);
 }
 
 void freeVM(){
