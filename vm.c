@@ -148,7 +148,7 @@ static InterpretResult run() {
       }
       printf("\n");
         disassembleInstruction(&frame->function->chunk,
-        (int)(frame->ip - frame->function->chunk.code));
+        (int)(ip - frame->function->chunk.code));
   #endif
 
       uint8_t instruction;
@@ -257,7 +257,7 @@ static InterpretResult run() {
           }
         case OP_JUMP_IF_FALSE: {
           uint16_t offset = READ_SHORT();
-          ip += offset;
+          if (isFalsey(peek(0)))ip += offset;
           break;
       }
       case OP_JUMP: {
