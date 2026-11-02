@@ -4,7 +4,7 @@
 #include "object.h"
 #include "vm.h"
 
+ObjFunction* compile(const char* source);
 
-bool compile(const char *source, Chunk* chunk);
 
 #endif

@@ -8,6 +8,7 @@
 typedef enum {
     OP_CONSTANT,
     OP_NEGATE,
+    OP_CALL,
     OP_PRINT,
     OP_RETURN,
     OP_SET_GLOBAL,
