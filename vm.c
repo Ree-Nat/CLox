@@ -77,6 +77,10 @@ void freeVM(){
   freeObjects();
 }
 
+static ObjUpvalue* captureUpvalue(Value* local) {
+  ObjUpvalue* createdUpvalue = newUpvalue(local);
+  return createdUpvalue;
+}
 
 
 static InterpretResult run() {
@@ -133,6 +137,19 @@ static InterpretResult run() {
         case OP_TRUE: push(BOOL_VAL(true)); break;
         case OP_FALSE: push(BOOL_VAL(false)); break;
         case OP_POP: pop(); break;
+
+        case OP_GET_UPVALUE: {
+        uint8_t slot = READ_BYTE();
+        push(*frame->closure->upvalues[slot]->location);
+        break;
+        }
+
+        case OP_SET_UPVALUE: {
+        uint8_t slot = READ_BYTE();
+        *frame->closure->upvalues[slot]->location = peek(0);
+        break;
+        }
+
         case OP_GET_GLOBAL: {
         ObjString* name = READ_STRING();
         Value value;
@@ -204,7 +221,19 @@ static InterpretResult run() {
       case OP_CLOSURE: {
       ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
       ObjClosure* closure = newClosure(function);
+
       push(OBJ_VAL(closure));
+          for (int i = 0; i < closure->upvalueCount; i++) {
+          uint8_t isLocal = READ_BYTE();
+          uint8_t index = READ_BYTE();
+          if (isLocal) {
+            closure->upvalues[i] =
+                captureUpvalue(frame->slots + index);
+          } else {
+            closure->upvalues[i] = frame->closure->upvalues[index];
+          }
+        }
+
       break;
       }
         case OP_RETURN: {
@@ -252,7 +281,12 @@ static InterpretResult run() {
 }
 
 InterpretResult interpret(const char* source) {
-  ObjClosure* closure = newClosure(source);
+  ObjFunction* function = compile(source);
+  if (function == NULL) return INTERPRET_COMPILE_ERROR;
+
+  push(OBJ_VAL(function));
+
+  ObjClosure* closure = newClosure(function);
   pop();
   push(OBJ_VAL(closure));
   call(closure, 0);
@@ -300,8 +334,10 @@ static bool callValue(Value callee, int argCount) {
     switch (OBJ_TYPE(callee)) {
       case OBJ_CLOSURE:
         return call(AS_CLOSURE(callee), argCount);
+      /*
       case OBJ_FUNCTION: 
         return call(AS_FUNCTION(callee), argCount);
+        */
       case OBJ_NATIVE: {
         NativeFn native = AS_NATIVE(callee);
         Value result = native(argCount, vm.stackTop - argCount);
@@ -316,6 +352,8 @@ static bool callValue(Value callee, int argCount) {
   runtimeError("Can only call functions and classes.");
   return false;
 }
+
+
 
 static bool isFalsey(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
@@ -334,3 +372,4 @@ static void concatenate() {
   ObjString* result = takeString(chars, length);
   push(OBJ_VAL(result));
 }
+
