@@ -28,9 +28,9 @@ fun vector(x, y){
 
 var a = vector(1,1);
 var b = vector(5,5);
-print(a("x")) 
-print(b("y"))
+print(a("x"));
+print(b("y"));
 
 var c = a("add")(b);
 print c("x");
-print c("y) 
+print c("y"); 
