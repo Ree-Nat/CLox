@@ -27,6 +27,7 @@ static void concatenate();
 
 static void resetStack() {
     //vm.objects = NULL;
+    vm.openUpvalues = NULL;
     vm.stackTop = vm.stack;
     vm.frameCount = 0;
 }
@@ -78,10 +79,39 @@ void freeVM(){
 }
 
 static ObjUpvalue* captureUpvalue(Value* local) {
+
+  ObjUpvalue* prevUpvalue = NULL;
+  ObjUpvalue* upvalue = vm.openUpvalues;
+  while (upvalue != NULL && upvalue->location > local) {
+    prevUpvalue = upvalue;
+    upvalue = upvalue->next;
+  }
+
+  if (upvalue != NULL && upvalue->location == local) {
+    return upvalue;
+  }
+
   ObjUpvalue* createdUpvalue = newUpvalue(local);
+
+    createdUpvalue->next = upvalue;
+
+  if (prevUpvalue == NULL) {
+    vm.openUpvalues = createdUpvalue;
+  } else {
+    prevUpvalue->next = createdUpvalue;
+  }
   return createdUpvalue;
 }
 
+static void closeUpvalues(Value* last) {
+  while (vm.openUpvalues != NULL &&
+         vm.openUpvalues->location >= last) {
+    ObjUpvalue* upvalue = vm.openUpvalues;
+    upvalue->closed = *upvalue->location;
+    upvalue->location = &upvalue->closed;
+    vm.openUpvalues = upvalue->next;
+  }
+}
 
 static InterpretResult run() {
    CallFrame* frame = &vm.frames[vm.frameCount - 1];
@@ -238,6 +268,7 @@ static InterpretResult run() {
       }
         case OP_RETURN: {
           Value result = pop();
+          closeUpvalues(frame->slots);
           vm.frameCount--;
           if (vm.frameCount == 0) {
             pop();
@@ -249,6 +280,11 @@ static InterpretResult run() {
           frame = &vm.frames[vm.frameCount - 1];
           break;
           }
+
+        case OP_CLOSE_UPVALUE:
+          closeUpvalues(vm.stackTop - 1);
+          pop();
+          break;
         case OP_JUMP_IF_FALSE: {
           uint16_t offset = READ_SHORT();
           if (isFalsey(peek(0))) frame->ip += offset;

@@ -44,6 +44,7 @@ typedef struct {
 typedef struct {
   Token name;
   int depth;
+  bool isCaptured;
 } Local;
 
 typedef struct {
@@ -247,6 +248,7 @@ static int resolveUpvalue(Compiler* compiler, Token* name) {
 
   int local = resolveLocal(compiler->enclosing, name);
   if (local != -1) {
+    compiler->enclosing->locals[local].isCaptured = true;
     return addUpvalue(compiler, (uint8_t)local, true);
   }
 
@@ -268,6 +270,7 @@ static void addLocal(Token name) {
   Local* local = &current->locals[current->localCount++];
   local->name = name;
   local->depth = -1;
+  local->isCaptured = false;
 }
 
 static uint8_t parseVariable(const char* errorMessage) {

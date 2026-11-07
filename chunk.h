@@ -33,6 +33,7 @@ typedef enum {
     OP_NOT,
     OP_MULTIPLY,
     OP_DIVIDE,
+    OP_CLOSE_UPVALUE,
     OP_LOOP,
 } OpCode;
 
