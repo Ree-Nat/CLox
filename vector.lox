@@ -1,0 +1,36 @@
+var globalGetX;
+var globalGetY;
+
+fun vector(x, y){
+    fun getX()
+    {
+        return xValue;
+    }
+    fun getY()
+    {
+        return yValue;
+    }
+
+    fun add(vec){
+        return vector(x + other("x), y + other("y"))
+    }
+
+    fun dispatch(message){
+        if (message == "x") return getX();
+        if (message == "y) return getY();
+        if (message == "add) return add;
+        print "unknown message";
+        return nil;
+    }
+    return dispatch
+
+}
+
+var a = vector(1,1);
+var b = vector(5,5);
+print(a("x")) 
+print(b("y"))
+
+var c = a("add")(b);
+print c("x");
+print c("y) 
