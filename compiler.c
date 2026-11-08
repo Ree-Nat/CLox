@@ -672,14 +672,29 @@ static void expressionStatement() {
 
 static void forStatement() {
   beginScope();
+
+  // Refer to the current iteration for reference later
+  int loopVariable = -1;
+  Token loopVariableName;
+  loopVariableName.start = NULL;
+  //end
+
+
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
   if (match(TOKEN_SEMICOLON)) {
     // No initializer.
   } else if (match(TOKEN_VAR)) {
+    
+    /// We get the current loopVariable and shadow it over
+    loopVariableName = parser.current;
     varDeclaration();
+    loopVariable = current->localCount - 1;
+    ///
+
   } else {
     expressionStatement();
   }
+
 
   int loopStart = currentChunk()->count;
   int exitJump = -1;
@@ -704,7 +719,32 @@ static void forStatement() {
     patchJump(bodyJump);
   }
 
+  ////
+  int innerVariable = -1;
+  if(loopVariable != -1)
+  {
+    beginScope();
+    emitBytes(OP_GET_LOCAL, (uint8_t)loopVariable);
+    addLocal(loopVariableName);
+    markInitialized();
+
+    innerVariable = current->localCount - 1;
+  }
+  //////////
+
   statement();
+
+
+  //
+  if (loopVariable != -1) {
+    emitBytes(OP_GET_LOCAL, (uint8_t)innerVariable);
+    emitBytes(OP_SET_LOCAL, (uint8_t)loopVariable);
+    emitByte(OP_POP);
+
+    endScope();
+  }
+  //
+
   emitLoop(loopStart);
 
   if (exitJump != -1) {
@@ -824,10 +864,14 @@ static void endScope() {
   current->scopeDepth--;
 
   while (current->localCount > 0 &&
-        current->locals[current->localCount - 1].depth >
-          current->scopeDepth) {
-  emitByte(OP_POP);
-  current->localCount--;
+         current->locals[current->localCount - 1].depth >
+           current->scopeDepth) {
+    if (current->locals[current->localCount - 1].isCaptured) {
+      emitByte(OP_CLOSE_UPVALUE);
+    } else {
+      emitByte(OP_POP);
+    }
+    current->localCount--;
   }
 }
 
