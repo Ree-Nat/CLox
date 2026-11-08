@@ -630,14 +630,26 @@ static void function(FunctionType type) {
     consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
     block();
 
-  ObjFunction* function = endCompiler();
-  emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+  //clox ch 25 challenge.1
+  //Do not emit OP_CLOSURE, instead emite OP_CONSTANT
 
-  for (int i = 0; i < function->upvalueCount; i++) {
-    emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
-    emitByte(compiler.upvalues[i].index);
+  ObjFunction* function = endCompiler();
+
+  uint8_t functionConstant = makeConstant(OBJ_VAL(function));
+  if (function->upvalueCount > 0) { //Only emit closure when there are upvalues. 
+    emitBytes(OP_CLOSURE, functionConstant);
+
+    for (int i = 0; i < function->upvalueCount; i++) {
+      emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+      emitByte(compiler.upvalues[i].index);
+    }
+  } else {
+    emitBytes(OP_CONSTANT, functionConstant);
   }
+
 }
+
+
 
 static void funDeclaration() {
   uint8_t global = parseVariable("Expect function name.");
@@ -826,7 +838,13 @@ static void endScope() {
   while (current->localCount > 0 &&
         current->locals[current->localCount - 1].depth >
           current->scopeDepth) {
-  emitByte(OP_POP);
+//emitByte(OP_POP);
+
+  if (current->locals[current->localCount - 1].isCaptured) {
+      emitByte(OP_CLOSE_UPVALUE);
+    } else {
+      emitByte(OP_POP);
+    }
   current->localCount--;
   }
 }

@@ -14,7 +14,8 @@
 
 
 typedef struct {
-    ObjClosure* closure;
+   // ObjClosure* closure; clox challenge level 1 //Dont rely on closure here
+    Obj* callee;
     ObjFunction* function;
     uint8_t* ip;
     Value* slots;
