@@ -10,6 +10,8 @@
 #endif
 
 #define GC_HEAP_GROW_FACTOR 2
+#define GC_MIN_HEAP (1024 * 1024) //1MB
+
 void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
   vm.bytesAllocated += newSize - oldSize;
 
@@ -192,6 +194,7 @@ void collectGarbage(){
   sweep();
 
   vm.nextGC = vm.bytesAllocated * GC_HEAP_GROW_FACTOR;
+  if(vm.nextGC < GC_MIN_HEAP) vm.nextGC = GC_MIN_HEAP;
   vm.markValue = !vm.markValue;
 
   #ifdef DEBUG_LOG_GC
