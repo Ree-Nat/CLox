@@ -13,10 +13,10 @@
 
 static Obj* allocateObject(size_t size, ObjType type) {
   Obj* object = (Obj*)reallocate(NULL, 0, size);
-  object->type = type;
-  object->isMarked = false;
+  setObjType(object, type);  
+  setIsMarked(object, false);
 
-  object->next = vm.objects;
+  setObjNext(object, vm.objects);
   vm.objects = object;
 
   #ifdef DEBUG_LOG_GC
@@ -121,7 +121,7 @@ ObjUpvalue* newUpvalue(Value* slot) {
 }
 
 void printObject(Value value) {
-  switch (OBJ_TYPE(value)) {
+  switch (objType(AS_OBJ(value))) {
     case OBJ_CLOSURE:
       printFunction(AS_CLOSURE(value)->function);
       break;

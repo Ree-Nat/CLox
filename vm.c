@@ -373,7 +373,7 @@ static bool call(ObjClosure* closure, int argCount) {
 
 static bool callValue(Value callee, int argCount) {
   if (IS_OBJ(callee)) {
-    switch (OBJ_TYPE(callee)) {
+    switch (AS_OBJ(callee)->header) {
       case OBJ_CLOSURE:
         return call(AS_CLOSURE(callee), argCount);
       /*

@@ -10,37 +10,37 @@
 #endif
 
 #define GC_HEAP_GROW_FACTOR 2
-void* reallocate(void* pointer, size_t oldSize, size_t newSize){
-    vm.bytesAllocated += newSize - oldSize;
-    if (newSize > oldSize) {
-    #ifdef DEBUG_STRESS_GC
-        collectGarbage();
-    #endif
-      }
+void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
+  vm.bytesAllocated += newSize - oldSize;
 
+  if (newSize > oldSize) {
+#ifdef DEBUG_STRESS_GC
+    collectGarbage();
+#endif
     if (vm.bytesAllocated > vm.nextGC) {
       collectGarbage();
     }
+  }
 
-    if (newSize == 0){
-        free(pointer);
-        return NULL;
-    }
+  if (newSize == 0) {
+    free(pointer);
+    return NULL;
+  }
 
-    void* result = realloc(pointer, newSize);
-    if (result == NULL) exit(1);
-    return result;
+  void* result = realloc(pointer, newSize);
+  if (result == NULL) exit(1);
+  return result;
 }
 
 void markObject(Obj* object) {
   if (object == NULL) return;
-  if (object -> isMarked) return;
+  if (isMarked(object)) return;
 #ifdef DEBUG_LOG_GC
   printf("%p mark ", (void*)object);
   printValue(OBJ_VAL(object));
   printf("\n");
 #endif
-  object->isMarked = true;
+  setIsMarked(object, true);
 
  if (vm.grayCapacity < vm.grayCount + 1) {
     vm.grayCapacity = GROW_CAPACITY(vm.grayCapacity);
@@ -68,7 +68,7 @@ static void blackenObject(Obj* object) {
     printValue(OBJ_VAL(object));
     printf("\n");
   #endif
-  switch (object->type) {
+  switch (objType(object)) {
 
     case OBJ_CLOSURE: {
       ObjClosure* closure = (ObjClosure*)object;
@@ -96,12 +96,12 @@ static void blackenObject(Obj* object) {
 static void freeObject(Obj* object) {
 
   #ifdef DEBUG_LOG_GC
-    printf("%p free type %d\n", (void*)object, object->type);
+    printf("%p free type %d\n", (void*)object, objType(object));
   #endif
 
   //markRoots();
 
-  switch (object->type) {
+  switch (objType(object)) {
     case OBJ_CLOSURE: {
       ObjClosure* closure = (ObjClosure*)object;
       FREE_ARRAY(ObjUpvalue*, closure->upvalues,
@@ -163,15 +163,15 @@ static void sweep() {
   Obj* previous = NULL;
   Obj* object = vm.objects;
   while (object != NULL) {
-    if (object->isMarked) {
-      object->isMarked = false;
+    if (isMarked(object)) {
+      setIsMarked(object, false);
       previous = object;
-      object = object->next;
+      object = objNext(object);
     } else {
       Obj* unreached = object;
-      object = object->next;
+      object = objNext(object);
       if (previous != NULL) {
-        previous->next = object;
+        setObjNext(previous, object);
       } else {
         vm.objects = object;
       }
@@ -208,7 +208,7 @@ void freeObjects() {
 
   Obj* object = vm.objects;
   while (object != NULL) {
-    Obj* next = object->next;
+    Obj* next = objNext(object);
     freeObject(object);
     object = next;
   }

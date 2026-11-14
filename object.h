@@ -29,10 +29,45 @@ typedef enum {
 } ObjType;
 
 struct Obj {
-  ObjType type;
-  bool isMarked;
-  struct Obj* next;
+  uint64_t header;
 };
+
+
+//6 object types, 2^3 = 8, only need three bits
+static inline ObjType objType(Obj* object) {
+  return (ObjType)((object->header >> 56) & 0xff);
+}
+
+//1  bit for mark, 0->true , 1-> false
+static inline bool isMarked(Obj* object) {
+  return (bool)((object->header >> 48) & 0x01);
+}
+
+//45 bits for pointer
+static inline Obj* objNext(Obj* object) {
+  return (Obj*)(object->header & 0x0000ffffffffffff);
+}
+
+//clearing the old value, store the updatd bits
+static inline void setIsMarked(Obj* object, bool isMarked) {
+  object->header = (object->header & 0xff00ffffffffffff) |
+      ((uint64_t)isMarked << 48);
+}
+
+static inline void setObjNext(Obj* object, Obj* next) {
+  object->header = (object->header & 0xffff000000000000) |
+      (uint64_t)next;
+}
+
+//setting the object type,clearing the bits, then or the new new value type
+static inline void setObjType(Obj* object, ObjType type) {
+  object->header = (object->header & 0x00ffffffffffffff)
+                 | ((uint64_t)type << 56);
+}
+
+
+
+
 
 typedef struct {
   Obj obj;
@@ -79,7 +114,7 @@ ObjUpvalue* newUpvalue(Value* slot);
 void printObject(Value value);
 
 static inline bool isObjType(Value value, ObjType type) {
-  return IS_OBJ(value) && AS_OBJ(value)->type == type;
+  return IS_OBJ(value) && AS_OBJ(value)->header == type;
 }
 
 #endif
