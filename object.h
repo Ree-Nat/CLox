@@ -30,6 +30,7 @@ typedef enum {
 
 struct Obj {
   uint64_t header;
+  bool mark;
 };
 
 

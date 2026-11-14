@@ -67,6 +67,7 @@ void initVM(){
     vm.objects = NULL; 
     vm.bytesAllocated = 0;
     vm.nextGC = 1024 * 1024;
+    vm.markValue = true;
 
 
     vm.grayCount = 0;

@@ -4,6 +4,7 @@
 #include "memory.h"
 #include "object.h"
 #include "table.h"
+#include "vm.h"
 #include "value.h"
 
 #define TABLE_MAX_LOAD 0.75
@@ -137,7 +138,7 @@ ObjString* tableFindString(Table* table, const char* chars,
 void tableRemoveWhite(Table* table) {
   for (int i = 0; i < table->capacity; i++) {
     Entry* entry = &table->entries[i];
-    if (entry->key != NULL && !isMarked(&entry->key->obj)) {
+    if (entry->key != NULL && entry->key->obj.mark != vm.markValue) {
       tableDelete(table, entry->key);
     }
   }
