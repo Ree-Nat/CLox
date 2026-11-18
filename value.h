@@ -11,6 +11,7 @@ typedef enum {
   VAL_NIL,
   VAL_NUMBER,
   VAL_OBJ,
+  FALSE_VAL,
 } ValueType;
 
 typedef struct {
@@ -44,6 +45,7 @@ bool valuesEqual(Value a, Value b);
 #define NIL_VAL           ((Value){VAL_NIL, {.number = 0}})
 #define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = value}})
 #define OBJ_VAL(object)   ((Value){VAL_OBJ, {.obj = (Obj*) object}})
+#define FALSE_VAL         BOOL_VAL(false)
 
 
 
