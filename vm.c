@@ -17,13 +17,36 @@ static void concatenate();
 static bool call(ObjClosure* closure, int argCount);
 static bool callValue(Value callee, int argCount);
 
+
+static Value getFieldNative(int argCount, Value* args) {
+  if (argCount != 2) return FALSE_VAL;
+  if (!IS_INSTANCE(args[0])) return FALSE_VAL;
+  if (!IS_STRING(args[1])) return FALSE_VAL;
+
+  ObjInstance* instance = AS_INSTANCE(args[0]);
+  Value value;
+  tableGet(&instance->fields, AS_STRING(args[1]), &value);
+  return value;
+}
+
+static Value setFieldNative(int argCount, Value* args) {
+  if (argCount != 3) return FALSE_VAL;
+  if (!IS_INSTANCE(args[0])) return FALSE_VAL;
+  if (!IS_STRING(args[1])) return FALSE_VAL;
+
+  ObjInstance* instance = AS_INSTANCE(args[0]);
+  tableSet(&instance->fields, AS_STRING(args[1]), args[2]);
+  return args[2];
+}
+
+
 static Value clockNative(int argCount, Value* args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
 
 static Value hasFieldNative(int argCount, Value* args)
 {
-  if (!argCount != 2) return FALSE_VAL;
+  if (argCount != 2) return FALSE_VAL;
   if (!IS_INSTANCE(args[0])) return FALSE_VAL;
   if (!IS_STRING(args[1])) return FALSE_VAL;
 
@@ -87,7 +110,9 @@ void initVM(){
     initTable(&vm.globals);
     initTable(&vm.strings);
     defineNative("clock", clockNative);
-    defineNative("isDefined", defineNative);
+    defineNative("isDefined", hasFieldNative);
+    defineNative("getField", getFieldNative);
+    defineNative("setField", setFieldNative);
 }
 
 void freeVM(){
