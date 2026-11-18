@@ -29,6 +29,19 @@ static Value getFieldNative(int argCount, Value* args) {
   return value;
 }
 
+//returns true if object deletion is successful during runtime
+static Value deleteInstanceNative(int argCount, Value* args)
+{
+  if (argCount != 2) return FALSE_VAL;
+  if (!IS_INSTANCE(args[0])) return FALSE_VAL;
+  if (!IS_STRING(args[1])) return FALSE_VAL;
+
+  ObjInstance* instance = AS_INSTANCE(args[0]);
+  Value value;
+  tableDelete(&instance->fields, AS_STRING(args[1]));
+  return value; 
+}
+
 static Value setFieldNative(int argCount, Value* args) {
   if (argCount != 3) return FALSE_VAL;
   if (!IS_INSTANCE(args[0])) return FALSE_VAL;
@@ -113,6 +126,7 @@ void initVM(){
     defineNative("isDefined", hasFieldNative);
     defineNative("getField", getFieldNative);
     defineNative("setField", setFieldNative);
+    defineNative("deleteInstance", deleteInstanceNative);
 }
 
 void freeVM(){
