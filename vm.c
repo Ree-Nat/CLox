@@ -71,6 +71,7 @@ void initVM(){
     vm.objects = NULL; 
     vm.bytesAllocated = 0;
     vm.nextGC = 1024 * 1024;
+    vm.nextClassID = 0;
 
 
     vm.grayCount = 0;
@@ -127,11 +128,27 @@ static void closeUpvalues(Value* last) {
   }
 }
 
+//reconfigure to have the method of the class be stored
+//use key
 static void defineMethod(ObjString* name) {
   Value method = peek(0);
   ObjClass* klass = AS_CLASS(peek(1));
+  AS_CLOSURE(method)->classID = klass->id;
+
+  ObjString* originalName = name;
+  Value existing;
+  while (tableGet(&klass->methods, name, &existing)) {
+    ObjClosure* existingClosure = AS_CLOSURE(existing);
+    char buf[256];
+    int len = snprintf(buf, sizeof(buf), "%s@%x",
+                       originalName->chars, existingClosure->classID);
+    name = copyString(buf, len);
+  }
+
+  push(OBJ_VAL(name));                 
   tableSet(&klass->methods, name, method);
   pop();
+  pop();                               
 }
 
 
@@ -384,7 +401,10 @@ static InterpretResult run() {
       }
       case OP_CLASS:
       {
-        push(OBJ_VAL(newClass(READ_STRING())));
+        //reads the id instead
+        ObjString* name = READ_STRING();
+        uint16_t id = READ_SHORT();
+        push(OBJ_VAL(newClass(name, id)));
         break;
       }
       case OP_METHOD:

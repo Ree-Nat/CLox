@@ -17,6 +17,7 @@ typedef struct{
     Token previous;
     bool hadError;
     bool panicMode;
+    Token beforePrevious; //remembers the token before the dot
 } Parser;
 
 typedef enum {
@@ -75,6 +76,9 @@ typedef struct Compiler {
 typedef struct ClassCompiler {
   struct ClassCompiler* enclosing;
   bool hasSuperclass;
+  uint16_t id;
+  Token name;
+  Token methodName;
 } ClassCompiler;
 
 
@@ -108,6 +112,13 @@ static int resolveUpvalue(Compiler* compiler, Token* name);
 static void declareVariable();
 static void endScope();
 static void beginScope();
+static Token syntheticToken(const char* text);
+static void error(const char* message);
+static void consume(TokenType type, const char* message);
+static void emitByte(uint8_t byte);
+static void emitBytes(uint8_t byte1, uint8_t byte2);
+static uint8_t argumentList();
+static void namedVariable(Token name, bool canAssign);
 static void expression();
 static void statement();
 static void declaration();
@@ -119,6 +130,37 @@ static void synchronize();
 static uint8_t makeConstant(Value value);
 static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
+static void inner(bool canAssign);
+
+static void inner(bool canAssign) {
+  if (currentClass == NULL) {
+    error("Can't use 'inner' outside of a class.");
+    return;
+  }
+    //do the same for outer but instead go up by calling
+    // OP_INNER bytecode
+  namedVariable(syntheticToken("this"), false);
+  consume(TOKEN_LEFT_PAREN, "Expect argument list after 'inner'.");
+  uint8_t argCount = argumentList();
+
+  char name[256];
+  int len = snprintf(name, sizeof(name), "%.*s@%x",
+                     currentClass->methodName.length,
+                     currentClass->methodName.start,
+                     currentClass->id);
+  uint8_t constant = makeConstant(OBJ_VAL(copyString(name, len)));
+
+  emitBytes(OP_INNER, constant);
+  emitByte(argCount);
+}
+
+//for resolving private variable
+static uint8_t fieldConstant(Token* name) {
+  char buf[256];
+  int len = snprintf(buf, sizeof(buf), "%.*s@%d",
+                     name->length, name->start, currentClass->id);
+  return makeConstant(OBJ_VAL(copyString(buf, len)));
+}
 
 
 static void errorAt(Token* token, const char* message) {
@@ -151,6 +193,7 @@ static void errorAtCurrent(const char* message){
 
 static void advance() {
     parser.previous = parser.current; 
+    parser.beforePrevious = parser.previous;
 
     for(;;) {
         parser.current = scanToken();
@@ -380,8 +423,12 @@ static void call(bool canAssign) {
 }
 
 static void dot(bool canAssign) {
+  bool onThis = parser.beforePrevious.type == TOKEN_THIS; //
+
   consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
   uint8_t name = identifierConstant(&parser.previous);
+  
+  uint8_t field = onThis ? fieldConstant(&parser.previous) : name; // 
 
   if (canAssign && match(TOKEN_EQUAL)) {
     expression();
@@ -655,6 +702,7 @@ ParseRule rules[] = {
   [TOKEN_WHILE]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_ERROR]         = {NULL,     NULL,   PREC_NONE},
   [TOKEN_EOF]           = {NULL,     NULL,   PREC_NONE},
+  [TOKEN_INNER]         = {inner, NULL, PREC_NONE},
 };
 
 static void parsePrecedence(Precedence precedence) {
@@ -724,6 +772,9 @@ static void function(FunctionType type) {
 
 static void method() {
   consume(TOKEN_IDENTIFIER, "Expect method name.");
+  currentClass->methodName = parser.previous;
+    //remember the name for the key
+
   uint8_t constant = identifierConstant(&parser.previous);
 
   FunctionType type = TYPE_METHOD;
@@ -744,11 +795,23 @@ static void classDeclaration() {
   declareVariable();
 
   emitBytes(OP_CLASS, nameConstant);
+
+  if (vm.nextClassID >= 0xffff) {                  // NEW
+  error("Too many classes.");
+  }
+  uint16_t id = vm.nextClassID++;                  // NEW
+  emitByte((id >> 8) & 0xff);                      // NEW
+  emitByte(id & 0xff);   
+
+
+  
   defineVariable(nameConstant);
 
   ClassCompiler classCompiler;
   classCompiler.enclosing = currentClass;
   currentClass = &classCompiler;
+  classCompiler.id = id;
+  classCompiler.name = parser.previous;
 
   if (match(TOKEN_LESS)) {
     consume(TOKEN_IDENTIFIER, "Expect superclass name.");
@@ -758,10 +821,12 @@ static void classDeclaration() {
       error("A class can't inherit from itself.");
     }
 
-
+    /*
     beginScope();
     addLocal(syntheticToken("Super"));
     defineVariable(0);
+    */
+   //because were going top to bottom
 
     namedVariable(className, false);
     emitByte(OP_INHERIT);
@@ -777,10 +842,12 @@ static void classDeclaration() {
   }
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
   emitByte(OP_POP);
-    
+  
+  /*
   if (classCompiler.hasSuperclass) {
     endScope();
   }
+  */ //like above
 
   currentClass = currentClass->enclosing;
 }

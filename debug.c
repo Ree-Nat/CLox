@@ -38,6 +38,8 @@ int disassembleInstruction(Chunk* chunk, int offset)
       return simpleInstruction("OP_CLOSE_UPVALUE", offset);
     case OP_SUPER_INVOKE:
       return invokeInstruction("OP_SUPER_INVOKE", chunk, offset);
+    case OP_INNER:
+      return invokeInstruction("OP_INNER", chunk, offset); //return the instruction as always with other ops
     case OP_RETURN:
       return simpleInstruction("OP_RETURN", offset);
     case OP_PRINT:

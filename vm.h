@@ -21,6 +21,7 @@ typedef struct {
 } CallFrame;
 
 typedef struct {
+    uint16_t nextClassID;
     CallFrame frames[FRAMES_MAX];
     int frameCount;
     Value stack[STACK_MAX];

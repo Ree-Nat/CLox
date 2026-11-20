@@ -78,13 +78,17 @@ typedef struct {
   ObjFunction* function;
   ObjUpvalue** upvalues;
   int upvalueCount;
+  uint16_t classID;
 } ObjClosure;
 
 typedef struct {
   Obj obj;
   ObjString* name;
+  uint16_t id;
   Table methods;
 } ObjClass;
+
+//add id to be able to reference from top bottom
 
 typedef struct {
   Obj obj;
@@ -101,7 +105,7 @@ typedef struct {
 
 ObjBoundMethod* newBoundMethod(Value receiver,
                                ObjClosure* method);
-ObjClass* newClass(ObjString* name);
+ObjClass* newClass(ObjString* name, uint16_t id);
 ObjClosure* newClosure(ObjFunction* function);
 ObjString* takeString(char* chars, int length);
 ObjFunction* newFunction();

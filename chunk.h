@@ -14,6 +14,7 @@ typedef enum {
     OP_NEGATE,
     OP_CALL,
     OP_SUPER_INVOKE,
+    OP_INNER, //inner bytecode 
     OP_GET_SUPER,
     OP_INVOKE,
     OP_CLOSURE,

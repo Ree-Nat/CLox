@@ -18,10 +18,11 @@ typedef enum {
   TOKEN_AND, TOKEN_CLASS, TOKEN_ELSE, TOKEN_FALSE,
   TOKEN_FOR, TOKEN_FUN, TOKEN_IF, TOKEN_NIL, TOKEN_OR,
   TOKEN_PRINT, TOKEN_RETURN, TOKEN_SUPER, TOKEN_THIS,
-  TOKEN_TRUE, TOKEN_VAR, TOKEN_WHILE,
+  TOKEN_TRUE, TOKEN_VAR, TOKEN_WHILE, TOKEN_INNER,
 
   TOKEN_ERROR, TOKEN_EOF
 } TokenType;
+// add token inner to go down chain instead of up
 
 typedef struct {
     TokenType type;
