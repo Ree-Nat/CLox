@@ -13,6 +13,7 @@ typedef enum {
     OP_CONSTANT,
     OP_NEGATE,
     OP_CALL,
+    OP_INVOKE,
     OP_CLOSURE,
     OP_GET_UPVALUE,
     OP_SET_UPVALUE,

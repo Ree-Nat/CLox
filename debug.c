@@ -9,6 +9,8 @@ static int constantInstruction(const char* name, Chunk* chunk, int offset);
 static int byteInstruction(const char* name, Chunk* chunk, int offset);
 static int jumpInstruction(const char* name, int sign,
                            Chunk* chunk, int offset);
+static int invokeInstruction(const char* name, Chunk* chunk,
+                                int offset);
 
 void disassembleChunk(Chunk* chunk, const char* name) {
   printf("== %s ==\n", name);
@@ -60,6 +62,8 @@ int disassembleInstruction(Chunk* chunk, int offset)
       return constantInstruction("OP_SET_GLOBAL", chunk, offset);
     case OP_METHOD:
       return constantInstruction("OP_METHOD", chunk, offset);
+    case OP_INVOKE:
+      return invokeInstruction("OP_INVOKE", chunk, offset);
     case OP_EQUAL:
       return simpleInstruction("OP_EQUAL", offset);
     case OP_GREATER:
@@ -146,4 +150,14 @@ static int constantInstruction(const char* name, Chunk* chunk,
   printValue(chunk->constants.values[constant]);
   printf("'\n");
   return offset + 2;
+}
+
+static int invokeInstruction(const char* name, Chunk* chunk,
+                                int offset) {
+  uint8_t constant = chunk->code[offset + 1];
+  uint8_t argCount = chunk->code[offset + 2];
+  printf("%-16s (%d args) %4d '", name, argCount, constant);
+  printValue(chunk->constants.values[constant]);
+  printf("'\n");
+  return offset + 3;
 }

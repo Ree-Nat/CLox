@@ -17,6 +17,8 @@ static void concatenate();
 static bool call(ObjClosure* closure, int argCount);
 static bool callValue(Value callee, int argCount);
 static bool bindMethod(ObjClass* klass, ObjString* name);
+static bool invoke(ObjString* name, int argCount);
+
 
 static Value clockNative(int argCount, Value* args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
@@ -76,12 +78,16 @@ void initVM(){
 
     initTable(&vm.globals);
     initTable(&vm.strings);
+    vm.initString = NULL;
+    vm.initString = copyString("init", 4);
+
     defineNative("clock", clockNative);
 }
 
 void freeVM(){
   freeTable(&vm.globals);
   freeTable(&vm.strings);
+  vm.initString = NULL;
   freeObjects();
 }
 
@@ -357,9 +363,23 @@ static InterpretResult run() {
         push(value);
         break;
       }    
+      case OP_INVOKE: {
+        ObjString* method = READ_STRING();
+        int argCount = READ_BYTE();
+        if (!invoke(method, argCount)) {
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        frame = &vm.frames[vm.frameCount - 1];
+        break;
+      }
+      case OP_CLASS:
+      {
+        push(OBJ_VAL(newClass(READ_STRING())));
+        break;
+      }
       case OP_METHOD:
         defineMethod(READ_STRING());
-        break;
+        break;  
       }
     }
   #undef READ_BYTE
@@ -441,6 +461,16 @@ static bool callValue(Value callee, int argCount) {
       case OBJ_CLASS: {
         ObjClass* klass = AS_CLASS(callee);
         vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
+        Value initializer;
+        if (tableGet(&klass->methods, vm.initString,
+                     &initializer)) {
+          return call(AS_CLOSURE(initializer), argCount);
+        }
+        else if (argCount != 0) {
+          runtimeError("Expected 0 arguments but got %d.",
+                       argCount);
+          return false;
+        }
         return true;
       }
       default:
@@ -450,6 +480,38 @@ static bool callValue(Value callee, int argCount) {
   runtimeError("Can only call functions and classes.");
   return false;
 }
+
+
+
+static bool invokeFromClass(ObjClass* klass, ObjString* name,
+                            int argCount) {
+  Value method;
+  if (!tableGet(&klass->methods, name, &method)) {
+    runtimeError("Undefined property '%s'.", name->chars);
+    return false;
+  }
+  return call(AS_CLOSURE(method), argCount);
+}
+
+static bool invoke(ObjString* name, int argCount) {
+  Value receiver = peek(argCount);
+
+  if (!IS_INSTANCE(receiver)) {
+    runtimeError("Only instances have methods.");
+    return false;
+  }
+
+  ObjInstance* instance = AS_INSTANCE(receiver);
+
+  Value value;
+  if (tableGet(&instance->fields, name, &value)) {
+    vm.stackTop[-argCount - 1] = value;
+    return callValue(value, argCount);
+  }
+
+  return invokeFromClass(instance->klass, name, argCount);
+}
+
 
 static bool bindMethod(ObjClass* klass, ObjString* name) {
   Value method;
