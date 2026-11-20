@@ -17,7 +17,6 @@ typedef struct{
     Token previous;
     bool hadError;
     bool panicMode;
-    Token beforePrevious; //remembers the token before the dot
 } Parser;
 
 typedef enum {
@@ -76,7 +75,6 @@ typedef struct Compiler {
 typedef struct ClassCompiler {
   struct ClassCompiler* enclosing;
   bool hasSuperclass;
-  int id;
 } ClassCompiler;
 
 
@@ -123,15 +121,6 @@ static ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 
 
-//for resolving private variable
-static uint8_t fieldConstant(Token* name) {
-  char buf[256];
-  int len = snprintf(buf, sizeof(buf), "%.*s@%d",
-                     name->length, name->start, currentClass->id);
-  return makeConstant(OBJ_VAL(copyString(buf, len)));
-}
-
-
 static void errorAt(Token* token, const char* message) {
     if (parser.panicMode) return;
     parser.panicMode = true;
@@ -162,7 +151,6 @@ static void errorAtCurrent(const char* message){
 
 static void advance() {
     parser.previous = parser.current; 
-    parser.beforePrevious = parser.previous;
 
     for(;;) {
         parser.current = scanToken();
@@ -394,7 +382,6 @@ static void call(bool canAssign) {
 static void dot(bool canAssign) {
   consume(TOKEN_IDENTIFIER, "Expect property name after '.'.");
   uint8_t name = identifierConstant(&parser.previous);
-  uint8_t field = onThis ? fieldConstant(&parser.previous) : name;
 
   if (canAssign && match(TOKEN_EQUAL)) {
     expression();
