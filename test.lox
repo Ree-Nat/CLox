@@ -1,8 +1,7 @@
-fun outer() {
-  var x = "outside";
-  fun inner() {
-    print x;
-  }
-  inner();
+class Brunch {
+  init(food, drink) {}
 }
-outer();
+
+var start = clock();
+Brunch("eggs", "coffee");
+print clock() - start;
