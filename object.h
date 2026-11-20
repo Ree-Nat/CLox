@@ -83,6 +83,7 @@ typedef struct {
 typedef struct {
   Obj obj;
   ObjString* name;
+  Value initializer; //caching the initializer value here 
   Table methods;
 } ObjClass;
 
@@ -97,6 +98,8 @@ typedef struct {
   Value receiver;
   ObjClosure* method;
 } ObjBoundMethod;
+
+
 
 
 ObjBoundMethod* newBoundMethod(Value receiver,
