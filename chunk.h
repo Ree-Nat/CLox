@@ -6,6 +6,7 @@
 #include "value.h"
 
 typedef enum {
+    OP_METHOD,
     OP_CLASS,
     OP_SET_PROPERTY,
     OP_GET_PROPERTY,
